@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>Chat with {{ username }}</title>
+</head>
+<body>
+    <div class="chat-container">
+        <h1>🔅Chat with {{ 'tol' if username == 'arup' else 'arup' }}</h1>
+        <div id="messages" class="message-box">
+            {% for message in messages %}
+                <div class="message {{ 'sender' if message.sender == username else 'receiver' }}">
+                    <strong class="username">{{ message.sender }}:</strong> {{ message.content }}
+                </div>
+            {% endfor %}
+        </div>
+        <input type="text" id="messageInput" placeholder="Type your message..." autocomplete="off">
+        <button id="sendMessage">Send</button>
+        <button id="clearChat" class="clear-chat-btn">Clear Chat</button>
+    </div>
+
+    <!-- Add the audio element for notification sound -->
+    <audio id="notificationSound" src="{{ url_for('static', filename='notification.mp3') }}" preload="auto"></audio>
+
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+
+        // Function to play notification sound
+        function playNotificationSound() {
+            const sound = document.getElementById('notificationSound');
+            sound.play();
+        }
+
+        document.getElementById('sendMessage').onclick = function() {
+            const messageContent = document.getElementById('messageInput').value;
+            const sender = "{{ username }}";
+            const receiver = "{{ 'tol' if username == 'arup' else 'arup' }}"; // Change receiver based on the sender
+            socket.emit('send_message', { content: messageContent, sender: sender, receiver: receiver });
+            document.getElementById('messageInput').value = ''; // Clear the input
+        };
+
+        document.getElementById('clearChat').onclick = function() {
+            socket.emit('clear_chat');
+        };
+
+        socket.on('receive_message', function(data) {
+            const messagesDiv = document.getElementById('messages');
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', data.sender === "{{ username }}" ? 'sender' : 'receiver');
+            messageElement.innerHTML = `<strong class="username">${data.sender}:</strong> ${data.content}`;
+            messagesDiv.appendChild(messageElement);
+
+            // Play notification sound if the message is from the other user
+            if (data.sender !== "{{ username }}") {
+                playNotificationSound();
+            }
+
+            // Ensure the scroll position is maintained at the bottom
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+
+        socket.on('clear_chat', function() {
+            document.getElementById('messages').innerHTML = ''; // Clear messages
+        });
+    </script>
+</body>
+</html>
