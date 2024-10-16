@@ -1,3 +1,4 @@
+import os
 from flask import Flask, render_template, session, request
 from flask_socketio import SocketIO, emit
 from flask_sqlalchemy import SQLAlchemy
@@ -6,8 +7,18 @@ from datetime import datetime
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///chat.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Suppress warning
 db = SQLAlchemy(app)
-socketio = SocketIO(app)
+
+# Check if eventlet is installed and set async_mode
+async_mode = None
+try:
+    import eventlet
+    async_mode = 'eventlet'
+except ImportError:
+    raise ImportError('eventlet must be installed for async support.')
+
+socketio = SocketIO(app, async_mode=async_mode)
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -26,7 +37,8 @@ def login():
     password = request.form['password']
     if (username == 'arup' and password == 'sarkar') or (username == 'tol' and password == 'mandal'):
         session['username'] = username
-        return render_template('chat.html', username=username, messages=Message.query.filter((Message.sender == username) | (Message.receiver == username)).all())
+        messages = Message.query.filter((Message.sender == username) | (Message.receiver == username)).all()
+        return render_template('chat.html', username=username, messages=messages)
     return 'Invalid credentials!'
 
 @socketio.on('send_message')
